@@ -8,10 +8,17 @@ plugins {
 }
 
 val releaseKeystore = providers.environmentVariable("ANDROID_KEYSTORE_PATH")
+    .map(String::trim)
+    .filter { it.isNotEmpty() }
 val releaseKeyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS")
+    .map(String::trim)
+    .filter { it.isNotEmpty() }
 val releaseStorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD")
 val releaseKeyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD")
 val debugKeystore = providers.environmentVariable("TIKTOKVPN_DEBUG_KEYSTORE")
+    .map(String::trim)
+    .filter { it.isNotEmpty() }
+val releaseSigning = releaseKeystore.isPresent && releaseKeyAlias.isPresent
 val versionNameValue = providers.environmentVariable("TIKTOKVPN_VERSION_NAME").orElse("1.0.0")
 val versionCodeValue = providers.environmentVariable("TIKTOKVPN_VERSION_CODE").map(String::toInt).orElse(1)
 val coreVersionValue = providers.environmentVariable("TIKTOKVPN_CORE_VERSION").orElse("local")
@@ -40,7 +47,7 @@ android {
                 storeFile = file(debugKeystore.get())
             }
         }
-        if (releaseKeystore.isPresent) {
+        if (releaseSigning) {
             create("release") {
                 storeFile = file(releaseKeystore.get())
                 keyAlias = releaseKeyAlias.get()
@@ -59,7 +66,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles("proguard-rules.pro")
-            if (releaseKeystore.isPresent) {
+            if (releaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
