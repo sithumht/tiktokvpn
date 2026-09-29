@@ -51,8 +51,6 @@ class CoreBridge @Inject constructor() {
 
     fun coreVersion(): String = version("coreVersion")
 
-    fun upstreamVersion(): String = version("upstreamVersion")
-
     fun generateI1(host: String): String = try {
         apiClass().getMethod("generateI1", String::class.java).invoke(null, host) as String
     } catch (error: InvocationTargetException) {
@@ -70,7 +68,8 @@ class CoreBridge @Inject constructor() {
         val handler: (Any, java.lang.reflect.Method, Array<out Any?>?) -> Any? = { _, method, arguments ->
             when {
                 method.name == "protect" && arguments?.size == 1 ->
-                    protect?.invoke(arguments[0] as Int) ?: false
+                    // gomobile widens Go's `int` to a Java long.
+                    protect?.invoke((arguments[0] as Number).toInt()) ?: false
                 method.returnType == java.lang.Boolean.TYPE -> false
                 method.returnType == Integer.TYPE -> 0
                 method.returnType == java.lang.Long.TYPE -> 0L

@@ -11,6 +11,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.tiktokvpn.app.MainActivity
 import com.tiktokvpn.app.R
@@ -69,10 +70,16 @@ class TikTokVpnService : VpnService() {
         // Every socket the core opens is passed through here so its packets
         // leave on the physical network instead of looping through the
         // interface they are meant to carry.
-        bridge.setSocketProtector { fd -> runCatching { protect(fd) }.getOrDefault(false) }
+        bridge.setSocketProtector { fd ->
+            runCatching { protect(fd) }
+                .onSuccess { if (!it) trace("protect refused fd=$fd") }
+                .getOrDefault(false)
+        }
+        trace("service created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        trace("start action=${intent?.action ?: "none"}")
         when (intent?.action) {
             ACTION_CONNECT -> connect()
             ACTION_DISCONNECT -> disconnect()
@@ -128,11 +135,16 @@ class TikTokVpnService : VpnService() {
             while (true) {
                 if (stopping.get() || !prepare()) return
                 val failure = connectOnce()
-                if (failure == null) return
+                if (failure == null) {
+                    trace("tunnel ended normally")
+                    return
+                }
+                trace("attempt failed: $failure")
                 if (stopping.get()) return
                 if (failure == "endpoint_unreachable" && !retried) {
                     // The remembered route went quiet: forget it, look for a new one.
                     retried = true
+                    trace("route went quiet, searching for a new one")
                     endpointCache.clear()
                     continue
                 }
@@ -161,27 +173,35 @@ class TikTokVpnService : VpnService() {
         val settings = settingsStore.current()
         var accountJson = accountStore.read()
         if (accountJson == null) {
+            trace("no account on disk")
             fail("account_required")
             return false
         }
         if (settings.warpInWarp && !hasNestedAccount(accountJson)) {
             // The nested mode needs an account carrying a second tunnel, and
             // only a fresh registration mints one.
+            trace("nested mode needs a fresh account, registering")
             val created = operations.register(settings.relayEnabled, settings.relayUrl)
             val fresh = created.getOrElse { error ->
+                trace("register failed: ${codeOf(error)}")
                 fail(codeOf(error))
                 return false
             }
             accountJson = fresh
         }
 
-        if (endpointCache.read() == null) {
+        val cached = endpointCache.read()
+        if (cached == null) {
+            trace("no route remembered, searching")
             repository.update { it.copy(phase = TunnelPhase.Optimizing, progress = 0f) }
             val optimized = operations.optimize()
             optimized.getOrElse { error ->
+                trace("search failed: ${codeOf(error)}")
                 fail(codeOf(error))
                 return false
             }
+        } else {
+            trace("using remembered route ${cached.endpoint}")
         }
         return !stopping.get()
     }
@@ -199,8 +219,12 @@ class TikTokVpnService : VpnService() {
         val warpInWarp = settingsStore.current().warpInWarp
         val mtu = if (warpInWarp) TunnelDefaults.MTU_NESTED else TunnelDefaults.MTU
         val descriptor = openTunnel(accountJson, mtu)
-        if (descriptor == null) return "tunnel_unavailable"
+        if (descriptor == null) {
+            trace("interface could not be established")
+            return "tunnel_unavailable"
+        }
         tunnel = descriptor
+        trace("interface up route=${record.endpoint} mtu=$mtu nested=$warpInWarp fd=${descriptor.fd}")
 
         repository.update {
             it.copy(
@@ -220,20 +244,27 @@ class TikTokVpnService : VpnService() {
         try {
             val failure = operations.run(request) { event ->
                 when (event) {
-                    is CoreEvent.Handshaking -> repository.update {
-                        it.copy(phase = TunnelPhase.Connecting, detail = event.endpoint)
+                    is CoreEvent.Handshaking -> {
+                        trace("handshaking ${event.endpoint}")
+                        repository.update {
+                            it.copy(phase = TunnelPhase.Connecting, detail = event.endpoint)
+                        }
                     }
-                    is CoreEvent.Connected -> repository.update {
-                        it.copy(
-                            phase = TunnelPhase.Connected,
-                            endpoint = event.endpoint.ifBlank { record.endpoint },
-                            progress = 0f
-                        )
+                    is CoreEvent.Connected -> {
+                        trace("connected ${event.endpoint}")
+                        repository.update {
+                            it.copy(
+                                phase = TunnelPhase.Connected,
+                                endpoint = event.endpoint.ifBlank { record.endpoint },
+                                progress = 0f
+                            )
+                        }
                     }
                     is CoreEvent.Stats -> repository.update {
                         it.copy(rxBytes = event.rxBytes, txBytes = event.txBytes)
                     }
                     is CoreEvent.Error -> {
+                        trace("core error ${event.code}")
                         outcome.code = event.code
                         outcome.detail = event.message
                     }
@@ -280,6 +311,7 @@ class TikTokVpnService : VpnService() {
         (error as? com.tiktokvpn.app.core.CoreOperationException)?.code ?: "operation_failed"
 
     private fun fail(code: String) {
+        trace("giving up: $code")
         repository.update {
             it.copy(
                 phase = TunnelPhase.Failed,
@@ -368,6 +400,11 @@ class TikTokVpnService : VpnService() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
+    /** Local-only breadcrumb; logcat never leaves the device. */
+    private fun trace(message: String) {
+        Log.i(TAG, message)
+    }
+
     /** What the core reported about a connect attempt, read once it returns. */
     private class ConnectOutcome {
         @Volatile var code: String? = null
@@ -379,6 +416,7 @@ class TikTokVpnService : VpnService() {
         const val ACTION_DISCONNECT = "com.tiktokvpn.app.action.DISCONNECT"
         private const val CHANNEL_ID = "connection"
         private const val NOTIFICATION_ID = 1001
+        private const val TAG = "TikTokVPN"
 
         fun connectIntent(context: Context): Intent =
             Intent(context, TikTokVpnService::class.java).setAction(ACTION_CONNECT)

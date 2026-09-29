@@ -3,6 +3,7 @@ package com.tiktokvpn.app.ui
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -141,6 +142,7 @@ class AppViewModel @Inject constructor(
         if (mutableOptimizing.value) return
         val consent = VpnService.prepare(context)
         if (consent != null) {
+            trace("asking for system consent")
             connectAfterConsent = true
             mutableVpnConsent.tryEmit(consent)
             return
@@ -151,12 +153,14 @@ class AppViewModel @Inject constructor(
     fun onVpnConsent(granted: Boolean) {
         val pending = connectAfterConsent
         connectAfterConsent = false
+        trace("consent granted=$granted pending=$pending")
         if (granted && pending) startTunnel()
     }
 
     private fun startTunnel() {
         if (connection.value.phase.busy) return
         repository.set(ConnectionState(phase = TunnelPhase.Preparing))
+        trace("starting the connection service")
         ContextCompat.startForegroundService(context, TikTokVpnService.connectIntent(context))
     }
 
@@ -247,5 +251,10 @@ class AppViewModel @Inject constructor(
         val code = (error as? CoreOperationException)?.code
             ?: if (error is ClassNotFoundException || error is NoSuchMethodException) "core_missing" else null
         return errorMessage(context, code)
+    }
+
+    /** Local-only breadcrumb; logcat never leaves the device. */
+    private fun trace(message: String) {
+        Log.i("TikTokVPN", message)
     }
 }
