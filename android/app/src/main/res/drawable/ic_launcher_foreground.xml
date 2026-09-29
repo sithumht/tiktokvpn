@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Chromatic split behind the mark: the same offset trick the app uses in
+         its accent colors, kept subtle so the icon stays readable at 48dp. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:translateX="-4">
+        <path
+            android:fillColor="#25F4EE"
+            android:pathData="M60.5,24 L36,60 L50,60 L45,84 L72,48 L57,48 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:translateX="4">
+        <path
+            android:fillColor="#FE2C55"
+            android:pathData="M60.5,24 L36,60 L50,60 L45,84 L72,48 L57,48 Z" />
+    </group>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60.5,24 L36,60 L50,60 L45,84 L72,48 L57,48 Z" />
+</vector>

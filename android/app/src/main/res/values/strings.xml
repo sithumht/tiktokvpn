@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TikTokVPN</string>
+    <string name="credit">Developed with Love by Sithu Mht</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">TikTokVPN</string>
+    <string name="onboarding_headline">Fast, private browsing</string>
+    <string name="onboarding_body">One tap connects your device through an encrypted tunnel. No logs, no fuss — your connection stays yours.</string>
+    <string name="onboarding_creating">Setting things up…</string>
+    <string name="onboarding_start">Get started</string>
+
+    <!-- Connection states -->
+    <string name="status_idle">Tap to connect</string>
+    <string name="status_preparing">Preparing…</string>
+    <string name="status_optimizing">Finding the fastest route…</string>
+    <string name="status_connecting">Securing your connection…</string>
+    <string name="status_connected">You are protected</string>
+    <string name="status_disconnecting">Disconnecting…</string>
+    <string name="status_failed">Could not connect</string>
+
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_optimize">Optimize</string>
+    <string name="action_optimizing">Optimizing…</string>
+
+    <string name="stat_download">Download</string>
+    <string name="stat_upload">Upload</string>
+    <string name="stat_route">Route</string>
+    <string name="route_not_set">No saved route yet</string>
+
+    <!-- Warp in Warp -->
+    <string name="warp_in_warp_title">Warp in Warp</string>
+    <string name="warp_in_warp_description">Carry the tunnel inside a second one for extra stability</string>
+
+    <!-- Navigation -->
+    <string name="nav_settings">Settings</string>
+    <string name="nav_about">About</string>
+    <string name="nav_back">Back</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_connection">Connection</string>
+    <string name="settings_data">Data</string>
+    <string name="settings_relay">Registration relay</string>
+    <string name="settings_relay_description">Helps set up an account on restricted networks</string>
+    <string name="settings_relay_url">Relay address</string>
+    <string name="settings_reset_endpoint">Reset saved route</string>
+    <string name="settings_reset_endpoint_description">The next connection looks for a fresh route</string>
+    <string name="settings_reset_endpoint_done">Saved route cleared</string>
+    <string name="settings_new_account">Create a new account</string>
+    <string name="settings_new_account_description">Replaces the account stored on this device</string>
+    <string name="settings_clear_data">Clear all data</string>
+    <string name="settings_clear_data_description">Removes the account, settings and saved route</string>
+    <string name="settings_clear_data_confirm">Clear everything?</string>
+    <string name="settings_clear_data_message">This cannot be undone.</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_clear">Clear</string>
+
+    <!-- About -->
+    <string name="about_title">About</string>
+    <string name="about_version">App version</string>
+    <string name="about_core">Engine version</string>
+    <string name="about_thanks">Built with care for a faster, freer internet.</string>
+    <string name="about_license">Open source components are credited in the notices shipped with this app.</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Connection</string>
+    <string name="notification_channel_description">Shown while TikTokVPN is running</string>
+    <string name="notification_title">TikTokVPN is on</string>
+    <string name="notification_action_disconnect">Disconnect</string>
+
+    <!-- Phases surfaced while a route is being found -->
+    <string name="phase_registration">Creating your account</string>
+    <string name="phase_port_discovery">Checking reachable servers</string>
+    <string name="phase_tunnel_verification">Verifying the tunnel</string>
+    <string name="phase_speed_test">Measuring speed</string>
+    <string name="phase_handshake">Handshaking</string>
+    <string name="phase_listening">Listening</string>
+    <string name="phase_outer_tunnel">Building the outer tunnel</string>
+    <string name="phase_port_selected">Server selected</string>
+    <string name="phase_finding_route">Finding a working route</string>
+
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_core_missing">The connection engine is missing from this build.</string>
+    <string name="error_account_required">Account is missing. Create one from Settings.</string>
+    <string name="error_no_route">No working route found. Tap Optimize and try again.</string>
+    <string name="error_unreachable">The server did not answer. Trying another route.</string>
+    <string name="error_network_lost">Network lost. Check your connection and retry.</string>
+    <string name="error_engine_busy">The engine is busy. Try again in a moment.</string>
+</resources>
