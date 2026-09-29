@@ -48,7 +48,7 @@ jobs:
       - name: Build the mobile library
         env:
           TIKTOKVPN_CORE_VERSION: ${{ github.sha }}
-        run: ./scripts/build-mobile.sh
+        run: bash scripts/build-mobile.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: tiktokvpn-aar

@@ -41,7 +41,7 @@ jobs:
       - name: Build the mobile library
         env:
           TIKTOKVPN_CORE_VERSION: ${{ steps.version.outputs.name }}
-        run: ./scripts/build-mobile.sh
+        run: bash scripts/build-mobile.sh
 
       # Signing is optional: without the secrets the artifacts are simply
       # unsigned, which still gives a installable debug-signed build.
