@@ -179,6 +179,7 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             mutableOptimizing.value = true
             mutableMessage.value = null
+            trace("route search started nested=${settingsStore.current().warpInWarp}")
             repository.update {
                 it.copy(
                     phase = TunnelPhase.Optimizing,
@@ -195,7 +196,8 @@ class AppViewModel @Inject constructor(
                 if (current.phase == TunnelPhase.Optimizing) ConnectionState() else current
             }
             mutableOptimizing.value = false
-            result.onFailure { mutableMessage.value = messageFor(it) }
+            result.onSuccess { trace("route search remembered ${it.label}") }
+                .onFailure { mutableMessage.value = messageFor(it) }
         }
     }
 
@@ -205,8 +207,16 @@ class AppViewModel @Inject constructor(
 
     fun setWarpInWarp(enabled: Boolean) {
         if (connection.value.phase.tunnelUp) return
+        if (mutableSettings.value.warpInWarp == enabled) return
         mutableSettings.value = mutableSettings.value.copy(warpInWarp = enabled)
-        viewModelScope.launch { settingsStore.setWarpInWarp(enabled) }
+        viewModelScope.launch {
+            settingsStore.setWarpInWarp(enabled)
+            // The two modes remember different routes - a plain one is a single
+            // endpoint, a chained one is a pair - so a route found under one
+            // mode is of no use to the other.
+            endpointCache.clear()
+            repository.update { if (it.phase == TunnelPhase.Idle) ConnectionState() else it }
+        }
     }
 
     fun setRelayEnabled(enabled: Boolean) {

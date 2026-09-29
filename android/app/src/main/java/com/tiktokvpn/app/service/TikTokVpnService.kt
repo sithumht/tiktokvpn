@@ -191,8 +191,10 @@ class TikTokVpnService : VpnService() {
         }
 
         val cached = endpointCache.read()
-        if (cached == null) {
-            trace("no route remembered, searching")
+        // A route is only remembered in the shape the current mode needs: the
+        // nested mode wants a chain of two endpoints, the plain mode one.
+        if (cached == null || (settings.warpInWarp && !cached.nested)) {
+            trace("no usable route remembered, searching")
             repository.update { it.copy(phase = TunnelPhase.Optimizing, progress = 0f) }
             val optimized = operations.optimize()
             optimized.getOrElse { error ->
@@ -201,7 +203,7 @@ class TikTokVpnService : VpnService() {
                 return false
             }
         } else {
-            trace("using remembered route ${cached.endpoint}")
+            trace("using remembered route ${cached.label}")
         }
         return !stopping.get()
     }
@@ -224,7 +226,7 @@ class TikTokVpnService : VpnService() {
             return "tunnel_unavailable"
         }
         tunnel = descriptor
-        trace("interface up route=${record.endpoint} mtu=$mtu nested=$warpInWarp fd=${descriptor.fd}")
+        trace("interface up route=${record.label} mtu=$mtu nested=$warpInWarp fd=${descriptor.fd}")
 
         repository.update {
             it.copy(
@@ -233,7 +235,7 @@ class TikTokVpnService : VpnService() {
                 progress = 0f,
                 errorCode = null,
                 errorMessage = null,
-                endpoint = record.endpoint,
+                endpoint = record.label,
                 rxBytes = 0L,
                 txBytes = 0L
             )
@@ -255,7 +257,11 @@ class TikTokVpnService : VpnService() {
                         repository.update {
                             it.copy(
                                 phase = TunnelPhase.Connected,
-                                endpoint = event.endpoint.ifBlank { record.endpoint },
+                                endpoint = if (record.nested) {
+                                    record.label
+                                } else {
+                                    event.endpoint.ifBlank { record.endpoint }
+                                },
                                 progress = 0f
                             )
                         }

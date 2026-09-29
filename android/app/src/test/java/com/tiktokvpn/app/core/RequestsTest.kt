@@ -73,16 +73,67 @@ class RequestsTest {
     }
 
     @Test
-    fun nestedModeWrapsTheSameEndpointItConnectsTo() {
-        val record = EndpointRecord(endpoint = "5.6.7.8:51820", awgI1 = "", updatedAt = 1L)
+    fun nestedModeCarriesTheChainInsteadOfRetunnellingToOneAddress() {
+        val record = EndpointRecord(
+            endpoint = "5.6.7.8:51820",
+            outerEndpoint = "1.2.3.4:2408",
+            awgI1 = "",
+            updatedAt = 1L
+        )
         val payload = payloadOf(
             Requests.connect("account", 7, TunnelDefaults.MTU_NESTED, record, true)
         )
 
         assertEquals(TunnelDefaults.MTU_NESTED, payload.getInt("mtu"))
-        assertEquals(record.endpoint, payload.getString("throughEndpoint"))
-        assertEquals(record.endpoint, payload.getString("endpoint"))
+        assertEquals("1.2.3.4:2408", payload.getString("throughEndpoint"))
+        assertEquals("5.6.7.8:51820", payload.getString("endpoint"))
+        assertEquals(TunnelDefaults.PROTOCOL, payload.getString("protocol"))
+        assertEquals(TunnelDefaults.INNER_PROTOCOL, payload.getString("innerProtocol"))
         assertFalse(payload.has("awgI1"))
+    }
+
+    @Test
+    fun plainModeNeverNestsEvenWhenTheRouteWasFoundAsAChain() {
+        val record = EndpointRecord(
+            endpoint = "5.6.7.8:51820",
+            outerEndpoint = "1.2.3.4:2408",
+            awgI1 = "",
+            updatedAt = 1L
+        )
+        val payload = payloadOf(Requests.connect("account", 7, TunnelDefaults.MTU, record, false))
+
+        assertFalse(payload.has("throughEndpoint"))
+        assertFalse(payload.has("innerProtocol"))
+        assertEquals(TunnelDefaults.MTU, payload.getInt("mtu"))
+    }
+
+    @Test
+    fun nestedSearchRunsFromInsideTheOuterTunnel() {
+        val nested = payloadOf(Requests.scan("account", through = "1.2.3.4:2408"))
+        assertEquals("1.2.3.4:2408", nested.getString("throughEndpoint"))
+        assertEquals(TunnelDefaults.INNER_PROTOCOL, nested.getString("innerProtocol"))
+        assertEquals(TunnelDefaults.PROTOCOL, nested.getString("protocol"))
+
+        val plain = payloadOf(Requests.scan("account"))
+        assertFalse(plain.has("throughEndpoint"))
+        assertFalse(plain.has("innerProtocol"))
+    }
+
+    @Test
+    fun chainKeepsTheOuterEndpointItWasFoundThrough() {
+        val report = JSONObject().put(
+            "results",
+            org.json.JSONArray()
+                .put(JSONObject().put("endpoint", "inner:2").put("working", true).put("durable", true))
+        )
+
+        val chain = Requests.bestEndpoint(report, outerEndpoint = "outer:1")
+
+        assertNotNull(chain)
+        assertTrue(chain!!.nested)
+        assertEquals("inner:2", chain.endpoint)
+        assertEquals("outer:1", chain.outerEndpoint)
+        assertEquals("outer:1 → inner:2", chain.label)
     }
 
     @Test

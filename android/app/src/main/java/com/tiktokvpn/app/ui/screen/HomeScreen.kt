@@ -152,7 +152,7 @@ fun HomeScreen(
             RouteCard(
                 viewModel = viewModel,
                 warpInWarp = settings.warpInWarp,
-                endpoint = connection.endpoint.ifBlank { endpoint?.endpoint.orEmpty() },
+                endpoint = connection.endpoint.ifBlank { endpoint?.label.orEmpty() },
                 tunnelUp = tunnelUp,
                 optimizing = optimizing,
                 busy = connection.phase.busy

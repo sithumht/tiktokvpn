@@ -3,6 +3,7 @@ package com.tiktokvpn.app.core
 import com.tiktokvpn.app.data.AccountStore
 import com.tiktokvpn.app.data.EndpointCache
 import com.tiktokvpn.app.data.EndpointRecord
+import com.tiktokvpn.app.data.SettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,6 +21,7 @@ class CoreOperations @Inject constructor(
     private val bridge: CoreBridge,
     private val accountStore: AccountStore,
     private val endpointCache: EndpointCache,
+    private val settingsStore: SettingsStore,
     private val repository: ConnectionRepository
 ) {
 
@@ -48,15 +50,48 @@ class CoreOperations @Inject constructor(
     }
 
     /**
-     * Searches for a route and remembers the first endpoint that answered and
-     * held, together with the parameters it was found under.
+     * Searches for a route and remembers it, together with the parameters it
+     * was found under.
+     *
+     * The nested mode searches twice. The first pass finds the endpoint that
+     * will carry the chain - it decides where traffic leaves, so it is picked
+     * purely on quality. The second pass then runs *inside* that tunnel, which
+     * means every endpoint it reports already exits through the first one's
+     * region; that inner endpoint is the one the app actually opens a tunnel
+     * to. Searching it any other way would report endpoints reachable straight
+     * from this network, which is not where the chain would end.
      */
     suspend fun optimize(): Result<EndpointRecord> = guarded {
         val accountJson = accountStore.read()
             ?: throw CoreOperationException("account_required")
+        val nested = settingsStore.current().warpInWarp
+
+        val outer = scanOnce(accountJson, through = "")
+        val record = if (!nested) {
+            outer
+        } else {
+            val inner = scanOnce(accountJson, through = outer.endpoint, chained = true)
+            // The chain was only ever proven end to end under the second
+            // search's profile, so it keeps its own parameters where it has
+            // any, falling back to the outer ones when it does not.
+            if (inner.awgI1.isBlank()) inner.copy(awgI1 = outer.awgI1) else inner
+        }
+
+        endpointCache.save(record)
+        repository.update { it.copy(endpoint = record.label) }
+        record
+    }
+
+    /** One search pass: reports progress into the connection state and hands back the best result. */
+    private suspend fun scanOnce(
+        accountJson: String,
+        through: String,
+        chained: Boolean = false
+    ): EndpointRecord {
+        if (chained) repository.update { it.copy(detail = "Through", progress = 0f) }
         var capturedReport: JSONObject? = null
         var capturedFailure: CoreEvent.Error? = null
-        run(Requests.scan(accountJson)) { event ->
+        run(Requests.scan(accountJson, through)) { event ->
             when (event) {
                 is CoreEvent.Progress -> repository.update {
                     it.copy(
@@ -81,10 +116,8 @@ class CoreOperations @Inject constructor(
                 failure?.message
             )
         }
-        val record = Requests.bestEndpoint(report) ?: throw CoreOperationException("no_route")
-        endpointCache.save(record)
-        repository.update { it.copy(endpoint = record.endpoint) }
-        record
+        return Requests.bestEndpoint(report, outerEndpoint = through)
+            ?: throw CoreOperationException("no_route")
     }
 
     /**

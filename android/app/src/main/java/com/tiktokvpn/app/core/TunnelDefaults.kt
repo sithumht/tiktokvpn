@@ -6,7 +6,14 @@ package com.tiktokvpn.app.core
  * parameters is only ever connected with the same ones.
  */
 object TunnelDefaults {
+    /** The tunnel that crosses the network - the only one DPI sees at all. */
     const val PROTOCOL = "awg"
+
+    /**
+     * The tunnel carried inside the outer one. Obfuscation buys nothing where
+     * no observer exists, and it only eats MTU, so the nested hop stays plain.
+     */
+    const val INNER_PROTOCOL = "wg"
 
     const val MTU = 1280
     const val MTU_NESTED = 1220
